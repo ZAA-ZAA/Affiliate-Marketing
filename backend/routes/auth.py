@@ -121,7 +121,7 @@ def admin_login():
 
 @bp.route('/api/auth/affiliate-signup', methods=['POST'])
 def affiliate_signup():
-    """Affiliate partner signup"""
+    """Affiliate partner signup - creates user and partner record with pending status"""
     try:
         data = request.json
         email = data.get('email')
@@ -151,10 +151,10 @@ def affiliate_signup():
             (user_id, email, password_hash, firstName, lastName)
         )
         
-        # Create partner record
+        # Create partner record with pending status (admin will approve)
         partner_id = generate_uuid()
         execute_query(
-            "INSERT INTO partners (id, user_id, commission_rate, status) VALUES (%s, %s, %s, 'active')",
+            "INSERT INTO partners (id, user_id, commission_rate, status) VALUES (%s, %s, %s, 'pending')",
             (partner_id, user_id, 10.00)  # Default 10% commission
         )
         
@@ -166,7 +166,7 @@ def affiliate_signup():
                 'firstName': firstName,
                 'lastName': lastName,
                 'commissionRate': 10.00,
-                'status': 'active'
+                'status': 'pending'
             }
         }), 201
         
@@ -187,7 +187,8 @@ def affiliate_login():
         
         # Get affiliate user with partner info
         user = execute_query(
-            """SELECT u.id, u.email, u.first_name, u.last_name, p.id as partner_id, p.commission_rate, p.status
+            """SELECT u.id, u.email, u.password_hash, u.first_name, u.last_name, 
+                      p.id as partner_id, p.commission_rate, p.status
                FROM users u
                JOIN partners p ON u.id = p.user_id
                WHERE u.email = %s AND u.role = 'affiliate'""",
@@ -198,18 +199,8 @@ def affiliate_login():
         if not user:
             return jsonify({'error': 'Invalid credentials'}), 400
         
-        # Get password hash
-        user_auth = execute_query(
-            "SELECT password_hash FROM users WHERE id = %s",
-            (user['id'],),
-            fetch_one=True
-        )
-        
-        if not user_auth:
-            return jsonify({'error': 'Invalid credentials'}), 400
-        
         # Verify password
-        if not verify_password(password, user_auth['password_hash']):
+        if not verify_password(password, user['password_hash']):
             return jsonify({'error': 'Invalid credentials'}), 400
         
         return jsonify({

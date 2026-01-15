@@ -20,6 +20,9 @@ import {
   Copy,
   Plus,
   ExternalLink,
+  Clock,
+  AlertTriangle,
+  XCircle,
 } from "lucide-react";
 import type { AffiliateLink } from "@shared/api";
 
@@ -46,7 +49,13 @@ export default function AffiliateDashboard() {
 
     const partnerData = JSON.parse(affiliateData);
     setPartner(partnerData);
-    loadDashboardData(partnerData.id);
+    
+    // Only load dashboard data if partner is active
+    if (partnerData.id && partnerData.status === "active") {
+      loadDashboardData(partnerData.id);
+    } else {
+      setLoading(false);
+    }
   }, [navigate]);
 
   const loadDashboardData = async (partnerId: string) => {
@@ -136,6 +145,139 @@ export default function AffiliateDashboard() {
     return null;
   }
 
+  // Show pending approval message
+  if (partner.status === "pending") {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        {/* Header */}
+        <header className="bg-white border-b border-gray-200">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <div className="h-8 w-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                  <Users className="h-5 w-5 text-white" />
+                </div>
+                <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  Affiliate Dashboard
+                </span>
+              </div>
+              <div className="flex items-center space-x-4">
+                <span className="text-sm text-gray-600">
+                  {partner.firstName} {partner.lastName}
+                </span>
+                <Button variant="outline" size="sm" onClick={handleLogout}>
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Logout
+                </Button>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-2xl mx-auto">
+            <Card className="border-amber-200 bg-amber-50">
+              <CardContent className="p-8">
+                <div className="flex flex-col items-center text-center">
+                  <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mb-6">
+                    <Clock className="h-10 w-10 text-amber-600" />
+                  </div>
+                  <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                    Account Under Review
+                  </h1>
+                  <p className="text-gray-600 mb-6 max-w-md">
+                    Your account is under review for approval. Our team will review your
+                    application and notify you once your account has been approved.
+                  </p>
+                  <div className="bg-white rounded-lg p-4 w-full border border-amber-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
+                          {partner.firstName.charAt(0)}
+                          {partner.lastName.charAt(0)}
+                        </div>
+                        <div className="text-left">
+                          <p className="font-medium text-gray-900">
+                            {partner.firstName} {partner.lastName}
+                          </p>
+                          <p className="text-sm text-gray-500">{partner.email}</p>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-300">
+                        <Clock className="h-3 w-3 mr-1" />
+                        Pending
+                      </Badge>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-500 mt-6">
+                    This usually takes 1-2 business days. Thank you for your patience!
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show rejected message
+  if (partner.status === "rejected") {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        {/* Header */}
+        <header className="bg-white border-b border-gray-200">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <div className="h-8 w-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                  <Users className="h-5 w-5 text-white" />
+                </div>
+                <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  Affiliate Dashboard
+                </span>
+              </div>
+              <div className="flex items-center space-x-4">
+                <span className="text-sm text-gray-600">
+                  {partner.firstName} {partner.lastName}
+                </span>
+                <Button variant="outline" size="sm" onClick={handleLogout}>
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Logout
+                </Button>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-2xl mx-auto">
+            <Card className="border-red-200 bg-red-50">
+              <CardContent className="p-8">
+                <div className="flex flex-col items-center text-center">
+                  <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-6">
+                    <XCircle className="h-10 w-10 text-red-600" />
+                  </div>
+                  <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                    Application Not Approved
+                  </h1>
+                  <p className="text-gray-600 mb-6 max-w-md">
+                    Unfortunately, your affiliate application was not approved at this time.
+                    If you believe this was a mistake, please contact our support team.
+                  </p>
+                  <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300">
+                    <XCircle className="h-3 w-3 mr-1" />
+                    Rejected
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -185,7 +327,7 @@ export default function AffiliateDashboard() {
                   </h1>
                   <p className="text-gray-600">{partner.email}</p>
                   <div className="flex items-center space-x-4 mt-2">
-                    <Badge variant="default">Active</Badge>
+                    <Badge variant="default" className="bg-green-600">Active</Badge>
                     <span className="text-sm text-gray-500">
                       {partner.commissionRate}% Commission Rate
                     </span>

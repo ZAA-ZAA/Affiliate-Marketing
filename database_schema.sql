@@ -31,7 +31,7 @@ CREATE TABLE partners (
     id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) NOT NULL,
     commission_rate DECIMAL(5,2) NOT NULL DEFAULT 10.00,
-    status ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
+    status ENUM('pending', 'active', 'inactive', 'rejected') NOT NULL DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,

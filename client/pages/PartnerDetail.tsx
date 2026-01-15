@@ -569,19 +569,19 @@ export default function PartnerDetail() {
                           </SelectContent>
                         </Select>
                         {newLink.useCustomUrl && (
-                          <Input
-                            id="originalUrl"
-                            type="url"
-                            placeholder="https://example.com/product"
-                            value={newLink.originalUrl}
-                            onChange={(e) =>
-                              setNewLink((prev) => ({
-                                ...prev,
-                                originalUrl: e.target.value,
-                              }))
-                            }
-                            required
-                          />
+                      <Input
+                        id="originalUrl"
+                        type="url"
+                        placeholder="https://example.com/product"
+                        value={newLink.originalUrl}
+                        onChange={(e) =>
+                          setNewLink((prev) => ({
+                            ...prev,
+                            originalUrl: e.target.value,
+                          }))
+                        }
+                        required
+                      />
                         )}
                       </div>
                     </div>

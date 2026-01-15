@@ -35,6 +35,9 @@ import {
   Copy,
   MoreHorizontal,
   UserCheck,
+  Clock,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 import {
   Select,
@@ -43,6 +46,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { AffiliateLink, UserStats } from "@shared/api";
 
 // Helper function to make requests with fallback to XMLHttpRequest
@@ -140,34 +144,44 @@ interface Partner {
   totalClicks: number;
   totalConversions: number;
   totalEarnings: number;
-  status: "active" | "inactive";
+  status: "pending" | "active" | "inactive" | "rejected";
+  joinedDate: string;
+}
+
+interface PendingPartner {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  commissionRate: number;
+  status: string;
   joinedDate: string;
 }
 
 export default function Dashboard() {
   const [partners, setPartners] = useState<Partner[]>([]);
+  const [pendingPartners, setPendingPartners] = useState<PendingPartner[]>([]);
   const [stats, setStats] = useState({
     totalPartners: 0,
+    pendingPartners: 0,
     totalClicks: 0,
     totalConversions: 0,
     totalEarnings: 0,
   });
   const [newPartner, setNewPartner] = useState({
     userId: "",
-    email: "",
-    firstName: "",
-    lastName: "",
     commissionRate: 10,
-    useExistingUser: false,
   });
   const [affiliateUsers, setAffiliateUsers] = useState<any[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddingPartner, setIsAddingPartner] = useState(false);
+  const [processingApproval, setProcessingApproval] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(true);
   const [retrying, setRetrying] = useState(false);
+  const [activeTab, setActiveTab] = useState("partners");
   const navigate = useNavigate();
 
   // Check if user is authenticated
@@ -179,7 +193,52 @@ export default function Dashboard() {
     }
     loadDashboardData();
     loadAffiliateUsers();
+    loadPendingPartners();
   }, [navigate]);
+
+  const loadPendingPartners = async () => {
+    try {
+      const data = await makeRequest("/api/partners/pending");
+      setPendingPartners(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Error loading pending partners:", err);
+    }
+  };
+
+  const handleApprovePartner = async (partnerId: string) => {
+    setProcessingApproval(partnerId);
+    setError("");
+    try {
+      await makeRequest(`/api/partners/${partnerId}/approve`, {
+        method: "POST",
+      });
+      setSuccess("Partner approved successfully!");
+      await loadDashboardData();
+      await loadPendingPartners();
+      setTimeout(() => setSuccess(""), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to approve partner");
+    } finally {
+      setProcessingApproval(null);
+    }
+  };
+
+  const handleRejectPartner = async (partnerId: string) => {
+    setProcessingApproval(partnerId);
+    setError("");
+    try {
+      await makeRequest(`/api/partners/${partnerId}/reject`, {
+        method: "POST",
+      });
+      setSuccess("Partner rejected.");
+      await loadPendingPartners();
+      setTimeout(() => setSuccess(""), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to reject partner");
+    } finally {
+      setProcessingApproval(null);
+    }
+  };
 
   const loadAffiliateUsers = async () => {
     try {
@@ -187,8 +246,8 @@ export default function Dashboard() {
       const response = await fetch("/api/affiliate-users");
       if (response.ok) {
         const users = await response.json();
-        // Only show users who don't have partner records yet
-        setAffiliateUsers(users.filter((u: any) => !u.hasPartner));
+        // API returns users who are not yet active partners (pending, rejected, or no partner)
+        setAffiliateUsers(users);
       }
     } catch (err) {
       console.error("Error loading affiliate users:", err);
@@ -221,6 +280,7 @@ export default function Dashboard() {
       console.log("Dashboard: Stats data:", statsData);
       setStats({
         totalPartners: statsData.total_partners || 0,
+        pendingPartners: statsData.pending_partners || 0,
         totalClicks: statsData.total_clicks || 0,
         totalConversions: statsData.total_conversions || 0,
         totalEarnings: statsData.total_earnings || 0,
@@ -249,6 +309,7 @@ export default function Dashboard() {
         setPartners([]);
         setStats({
           totalPartners: 0,
+          pendingPartners: 0,
           totalClicks: 0,
           totalConversions: 0,
           totalEarnings: 0,
@@ -296,36 +357,30 @@ export default function Dashboard() {
     setError("");
 
     try {
-      const requestData = newPartner.useExistingUser
-        ? {
-            userId: newPartner.userId,
-            commissionRate: newPartner.commissionRate,
-          }
-        : {
-            email: newPartner.email,
-            firstName: newPartner.firstName,
-            lastName: newPartner.lastName,
-            commissionRate: newPartner.commissionRate,
-          };
+      if (!newPartner.userId) {
+        setError("Please select an affiliate user");
+        setIsAddingPartner(false);
+        return;
+      }
 
       const data = await makeRequest("/api/partners", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestData),
+        body: JSON.stringify({
+          userId: newPartner.userId,
+          commissionRate: newPartner.commissionRate,
+        }),
       });
 
       // Reload dashboard data to get updated stats
       await loadDashboardData();
       await loadAffiliateUsers(); // Refresh available users
+      await loadPendingPartners(); // Refresh pending list
 
       setSuccess("Partner added successfully!");
       setNewPartner({
         userId: "",
-        email: "",
-        firstName: "",
-        lastName: "",
         commissionRate: 10,
-        useExistingUser: false,
       });
 
       setTimeout(() => setSuccess(""), 3000);
@@ -439,19 +494,35 @@ export default function Dashboard() {
         )}
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">
-                    Total Partners
+                    Active Partners
                   </p>
                   <p className="text-2xl font-bold text-gray-900">
                     {stats.totalPartners || 0}
                   </p>
                 </div>
                 <Users className="h-8 w-8 text-blue-600" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className={stats.pendingPartners > 0 ? "border-amber-300 bg-amber-50" : ""}>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">
+                    Pending Approval
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {stats.pendingPartners || 0}
+                  </p>
+                </div>
+                <Clock className={`h-8 w-8 ${stats.pendingPartners > 0 ? "text-amber-600" : "text-gray-400"}`} />
               </div>
             </CardContent>
           </Card>
@@ -505,71 +576,53 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* Partners Management */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Affiliate Partners
-                </CardTitle>
-                <CardDescription>
-                  Manage your affiliate partners and their performance
-                </CardDescription>
-              </div>
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Add Partner
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Add New Partner</DialogTitle>
-                    <DialogDescription>
-                      Link an existing affiliate user or create a new partner.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleAddPartner} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Partner Source</Label>
-                      <Select
-                        value={newPartner.useExistingUser ? "existing" : "new"}
-                        onValueChange={(value) => {
-                          setNewPartner((prev) => ({
-                            ...prev,
-                            useExistingUser: value === "existing",
-                            userId: "",
-                            email: "",
-                            firstName: "",
-                            lastName: "",
-                          }));
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="existing">
-                            <div className="flex items-center gap-2">
-                              <UserCheck className="h-4 w-4" />
-                              Select Existing Affiliate User
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="new">
-                            <div className="flex items-center gap-2">
-                              <UserPlus className="h-4 w-4" />
-                              Create New Partner
-                            </div>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+        {/* Tabbed Partner Management */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="partners" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Active Partners ({stats.totalPartners})
+            </TabsTrigger>
+            <TabsTrigger value="pending" className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              Pending Approval
+              {stats.pendingPartners > 0 && (
+                <Badge variant="destructive" className="ml-1 bg-amber-500">
+                  {stats.pendingPartners}
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
 
-                    {newPartner.useExistingUser ? (
-                      <>
+          {/* Active Partners Tab */}
+          <TabsContent value="partners">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="h-5 w-5" />
+                      Affiliate Partners
+                    </CardTitle>
+                    <CardDescription>
+                      Manage your affiliate partners and their performance
+                    </CardDescription>
+                  </div>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        Add Partner
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Add New Partner</DialogTitle>
+                        <DialogDescription>
+                          Select an affiliate user who has signed up to add them as a partner.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <form onSubmit={handleAddPartner} className="space-y-4">
                         <div className="space-y-2">
                           <Label htmlFor="selectUser">Select Affiliate User</Label>
                           <Select
@@ -580,7 +633,6 @@ export default function Dashboard() {
                                 userId: value,
                               }))
                             }
-                            required
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="Choose an affiliate user..." />
@@ -597,7 +649,18 @@ export default function Dashboard() {
                               ) : (
                                 affiliateUsers.map((user) => (
                                   <SelectItem key={user.id} value={user.id}>
-                                    {user.firstName} {user.lastName} ({user.email})
+                                    <div className="flex items-center justify-between w-full gap-2">
+                                      <span>{user.firstName} {user.lastName} ({user.email})</span>
+                                      {user.partnerStatus === 'pending' && (
+                                        <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">Pending</span>
+                                      )}
+                                      {user.partnerStatus === 'rejected' && (
+                                        <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded">Rejected</span>
+                                      )}
+                                      {!user.partnerStatus && (
+                                        <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">New</span>
+                                      )}
+                                    </div>
                                   </SelectItem>
                                 ))
                               )}
@@ -605,188 +668,255 @@ export default function Dashboard() {
                           </Select>
                           {affiliateUsers.length === 0 && !loadingUsers && (
                             <p className="text-xs text-gray-500">
-                              All affiliate users already have partner accounts.
+                              No affiliate users available. All signed up users are already active partners.
+                            </p>
+                          )}
+                          {affiliateUsers.length > 0 && (
+                            <p className="text-xs text-gray-500">
+                              Select a user to add them as an active partner. This will approve pending or rejected users.
                             </p>
                           )}
                         </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="firstName">First Name</Label>
-                            <Input
-                              id="firstName"
-                              value={newPartner.firstName}
-                              onChange={(e) =>
-                                setNewPartner((prev) => ({
-                                  ...prev,
-                                  firstName: e.target.value,
-                                }))
-                              }
-                              required={!newPartner.useExistingUser}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="lastName">Last Name</Label>
-                            <Input
-                              id="lastName"
-                              value={newPartner.lastName}
-                              onChange={(e) =>
-                                setNewPartner((prev) => ({
-                                  ...prev,
-                                  lastName: e.target.value,
-                                }))
-                              }
-                              required={!newPartner.useExistingUser}
-                            />
-                          </div>
-                        </div>
+
                         <div className="space-y-2">
-                          <Label htmlFor="email">Email</Label>
+                          <Label htmlFor="commissionRate">
+                            Commission Rate (%)
+                          </Label>
                           <Input
-                            id="email"
-                            type="email"
-                            value={newPartner.email}
+                            id="commissionRate"
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.1"
+                            value={newPartner.commissionRate}
                             onChange={(e) =>
                               setNewPartner((prev) => ({
                                 ...prev,
-                                email: e.target.value,
+                                commissionRate: parseFloat(e.target.value),
                               }))
                             }
-                            required={!newPartner.useExistingUser}
+                            required
                           />
                         </div>
-                      </>
-                    )}
-
-                    <div className="space-y-2">
-                      <Label htmlFor="commissionRate">
-                        Commission Rate (%)
-                      </Label>
-                      <Input
-                        id="commissionRate"
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                        value={newPartner.commissionRate}
-                        onChange={(e) =>
-                          setNewPartner((prev) => ({
-                            ...prev,
-                            commissionRate: parseFloat(e.target.value),
-                          }))
-                        }
-                        required
-                      />
-                    </div>
+                        <Button
+                          type="submit"
+                          className="w-full"
+                          disabled={isAddingPartner || !newPartner.userId}
+                        >
+                          {isAddingPartner ? "Adding..." : "Add Partner"}
+                        </Button>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {/* Search */}
+                <div className="flex items-center space-x-2 mb-6">
+                  <div className="relative flex-1 max-w-md">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Search partners by name or email..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  {searchTerm && (
                     <Button
-                      type="submit"
-                      className="w-full"
-                      disabled={isAddingPartner || (newPartner.useExistingUser && !newPartner.userId)}
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSearchTerm("")}
                     >
-                      {isAddingPartner ? "Adding..." : "Add Partner"}
+                      Clear
                     </Button>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {/* Search */}
-            <div className="flex items-center space-x-2 mb-6">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search partners by name or email..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              {searchTerm && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSearchTerm("")}
-                >
-                  Clear
-                </Button>
-              )}
-            </div>
+                  )}
+                </div>
 
-            {/* Partners Table */}
-            <div className="space-y-4">
-              {filteredPartners.map((partner) => (
-                <div
-                  key={partner.id}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-medium">
-                      {partner.firstName.charAt(0)}
-                      {partner.lastName.charAt(0)}
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-gray-900">
-                        {partner.firstName} {partner.lastName}
-                      </h3>
-                      <p className="text-sm text-gray-500">{partner.email}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-6">
-                    <div className="text-center">
-                      <p className="text-sm font-medium text-gray-900">
-                        {partner.commissionRate}%
-                      </p>
-                      <p className="text-xs text-gray-500">Commission</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm font-medium text-gray-900">
-                        {partner.totalClicks || 0}
-                      </p>
-                      <p className="text-xs text-gray-500">Clicks</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm font-medium text-gray-900">
-                        {partner.totalConversions || 0}
-                      </p>
-                      <p className="text-xs text-gray-500">Conversions</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm font-medium text-gray-900">
-                        ${(partner.totalEarnings || 0).toFixed(2)}
-                      </p>
-                      <p className="text-xs text-gray-500">Earnings</p>
-                    </div>
-                    <Badge
-                      variant={
-                        partner.status === "active" ? "default" : "secondary"
-                      }
+                {/* Partners Table */}
+                <div className="space-y-4">
+                  {filteredPartners.map((partner) => (
+                    <div
+                      key={partner.id}
+                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                     >
-                      {partner.status}
-                    </Badge>
-                    <Link to={`/partner/${partner.id}`}>
-                      <Button variant="outline" size="sm">
-                        <Eye className="h-4 w-4 mr-2" />
-                        View Details
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-              ))}
+                      <div className="flex items-center space-x-4">
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-medium">
+                          {partner.firstName.charAt(0)}
+                          {partner.lastName.charAt(0)}
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-gray-900">
+                            {partner.firstName} {partner.lastName}
+                          </h3>
+                          <p className="text-sm text-gray-500">{partner.email}</p>
+                        </div>
+                      </div>
 
-              {filteredPartners.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  {searchTerm
-                    ? "No partners found matching your search."
-                    : "No partners registered yet."}
+                      <div className="flex items-center space-x-6">
+                        <div className="text-center">
+                          <p className="text-sm font-medium text-gray-900">
+                            {partner.commissionRate}%
+                          </p>
+                          <p className="text-xs text-gray-500">Commission</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm font-medium text-gray-900">
+                            {partner.totalClicks || 0}
+                          </p>
+                          <p className="text-xs text-gray-500">Clicks</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm font-medium text-gray-900">
+                            {partner.totalConversions || 0}
+                          </p>
+                          <p className="text-xs text-gray-500">Conversions</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm font-medium text-gray-900">
+                            ${(partner.totalEarnings || 0).toFixed(2)}
+                          </p>
+                          <p className="text-xs text-gray-500">Earnings</p>
+                        </div>
+                        <Badge
+                          variant={
+                            partner.status === "active" ? "default" : "secondary"
+                          }
+                          className={partner.status === "active" ? "bg-green-600" : ""}
+                        >
+                          {partner.status}
+                        </Badge>
+                        <Link to={`/partner/${partner.id}`}>
+                          <Button variant="outline" size="sm">
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Details
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+
+                  {filteredPartners.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      {searchTerm
+                        ? "No partners found matching your search."
+                        : "No active partners yet."}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Pending Approval Tab */}
+          <TabsContent value="pending">
+            <Card className="border-amber-200">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Clock className="h-5 w-5 text-amber-600" />
+                      Pending Affiliate Applications
+                    </CardTitle>
+                    <CardDescription>
+                      Review and approve or reject affiliate partner applications
+                    </CardDescription>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={loadPendingPartners}
+                  >
+                    <TrendingUp className="h-4 w-4 mr-2" />
+                    Refresh
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {pendingPartners.map((partner) => (
+                    <div
+                      key={partner.id}
+                      className="flex items-center justify-between p-4 bg-amber-50 border border-amber-200 rounded-lg"
+                    >
+                      <div className="flex items-center space-x-4">
+                        <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-white font-bold">
+                          {partner.firstName.charAt(0)}
+                          {partner.lastName.charAt(0)}
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-gray-900">
+                            {partner.firstName} {partner.lastName}
+                          </h3>
+                          <p className="text-sm text-gray-500">{partner.email}</p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            Applied: {partner.joinedDate}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-4">
+                        <div className="text-center">
+                          <p className="text-sm font-medium text-gray-900">
+                            {partner.commissionRate}%
+                          </p>
+                          <p className="text-xs text-gray-500">Commission Rate</p>
+                        </div>
+                        <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-300">
+                          <Clock className="h-3 w-3 mr-1" />
+                          Pending
+                        </Badge>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700"
+                            onClick={() => handleApprovePartner(partner.id)}
+                            disabled={processingApproval === partner.id}
+                          >
+                            {processingApproval === partner.id ? (
+                              <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                            ) : (
+                              <>
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                Approve
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleRejectPartner(partner.id)}
+                            disabled={processingApproval === partner.id}
+                          >
+                            {processingApproval === partner.id ? (
+                              <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                            ) : (
+                              <>
+                                <XCircle className="h-4 w-4 mr-1" />
+                                Reject
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {pendingPartners.length === 0 && (
+                    <div className="text-center py-12 text-gray-500">
+                      <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-400" />
+                      <p className="font-medium">No pending applications</p>
+                      <p className="text-sm mt-1">
+                        All affiliate applications have been reviewed.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

@@ -59,10 +59,10 @@ export default function AffiliateSignup() {
 
       const data = await response.json();
 
-      // Store affiliate partner session
+      // Store affiliate partner session (will have status 'pending')
       localStorage.setItem("affiliate", JSON.stringify(data.partner));
 
-      // Redirect to affiliate dashboard
+      // Redirect to affiliate dashboard (will show pending approval message)
       navigate("/affiliate/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
