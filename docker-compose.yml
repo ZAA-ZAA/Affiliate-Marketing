@@ -1,0 +1,105 @@
+# Master Docker Compose for OJT Workspace
+# Run from OJT folder: docker-compose up --build
+# This manages both affiliate-management-main and demo-form-app
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: gleen_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: gleen_affiliate
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./affiliate-management-main/docker-init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot123"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gleen_network
+
+  # Python Flask Backend
+  backend:
+    build:
+      context: ./affiliate-management-main
+      dockerfile: Dockerfile.backend
+    container_name: gleen_backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASSWORD=root123
+      - DB_NAME=gleen_affiliate
+      - FLASK_ENV=development
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ./affiliate-management-main/backend:/app/backend
+      - ./affiliate-management-main/requirements.txt:/app/requirements.txt
+    networks:
+      - gleen_network
+
+  # React Vite Frontend (Affiliate Management Dashboard)
+  frontend:
+    build:
+      context: ./affiliate-management-main
+      dockerfile: Dockerfile.frontend
+    container_name: gleen_frontend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - VITE_API_URL=http://backend:5000
+    depends_on:
+      - backend
+    volumes:
+      - ./affiliate-management-main/client:/app/client
+      - ./affiliate-management-main/index.html:/app/index.html
+      - ./affiliate-management-main/vite.config.ts:/app/vite.config.ts
+      - ./affiliate-management-main/tailwind.config.ts:/app/tailwind.config.ts
+      - ./affiliate-management-main/postcss.config.js:/app/postcss.config.js
+      - ./affiliate-management-main/tsconfig.json:/app/tsconfig.json
+      - /app/node_modules
+    networks:
+      - gleen_network
+
+  # Demo Form App (Separate project for lead capture)
+  demo-form:
+    build:
+      context: ./demo-form-app
+      dockerfile: Dockerfile.dev
+    container_name: demo_form_app
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - VITE_API_URL=http://host.docker.internal:5000
+      - VITE_API_KEY=aff_live_key_2026_xK9mP2vL8nQ4wR7j
+    depends_on:
+      - backend
+    volumes:
+      - ./demo-form-app/src:/app/src
+      - ./demo-form-app/index.html:/app/index.html
+      - /app/node_modules
+    networks:
+      - gleen_network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  gleen_network:
+    driver: bridge

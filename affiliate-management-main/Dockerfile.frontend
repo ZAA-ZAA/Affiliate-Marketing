@@ -1,0 +1,31 @@
+# React Vite Frontend Dockerfile
+FROM node:20-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Install pnpm
+RUN npm install -g pnpm
+
+# Copy package files first (for better caching)
+COPY package.json pnpm-lock.yaml* package-lock.json* ./
+
+# Install dependencies (using npm install for compatibility)
+RUN npm install
+
+# Copy source code
+COPY client/ ./client/
+COPY public/ ./public/
+COPY index.html .
+COPY vite.config.ts .
+COPY tailwind.config.ts .
+COPY postcss.config.js .
+COPY tsconfig.json .
+COPY components.json .
+
+# Expose port
+EXPOSE 8080
+
+# Start Vite dev server (for development)
+# For production, you would build and serve static files
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
