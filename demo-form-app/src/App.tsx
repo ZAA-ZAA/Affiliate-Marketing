@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { CheckCircle, AlertCircle, Loader2, Send, User, Mail, Building, Phone, MessageSquare } from "lucide-react";
 import { API_CONFIG } from "./config";
 
@@ -24,6 +24,9 @@ function App() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
   const [clickTracked, setClickTracked] = useState(false);
+  
+  // Ref to prevent double tracking (especially in React StrictMode)
+  const trackingInProgress = useRef(false);
 
   // Extract affiliate-id from URL on mount and track the click
   useEffect(() => {
@@ -37,13 +40,24 @@ function App() {
     if (affiliateIdParam) {
       setAffiliateId(affiliateIdParam);
       
-      // Track the click with referrer information
-      trackClick(affiliateIdParam, documentReferrer);
+      // Create a unique key for this page visit to prevent duplicate tracking
+      const sessionKey = `tracked_${affiliateIdParam}_${window.location.href}`;
+      const alreadyTracked = sessionStorage.getItem(sessionKey);
+      
+      // Only track if not already tracked in this session and not currently tracking
+      if (!alreadyTracked && !trackingInProgress.current) {
+        trackingInProgress.current = true;
+        trackClick(affiliateIdParam, documentReferrer).finally(() => {
+          // Mark as tracked in session storage
+          sessionStorage.setItem(sessionKey, "true");
+          trackingInProgress.current = false;
+        });
+      }
     }
   }, []);
 
   // Track click with affiliate ID and referrer
-  const trackClick = async (affId: string, ref: string) => {
+  const trackClick = async (affId: string, ref: string): Promise<void> => {
     try {
       const response = await fetch(`${API_CONFIG.API_URL}/api/external/track-click`, {
         method: "POST",

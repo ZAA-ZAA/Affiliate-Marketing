@@ -675,7 +675,11 @@ export default function PartnerDetail() {
                         )}
                       </Button>
                       <a
-                        href={link.original_url}
+                        href={(() => {
+                          const url = new URL(link.original_url);
+                          url.searchParams.set("affiliate-id", link.link_code);
+                          return url.toString();
+                        })()}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:underline flex items-center"
