@@ -42,12 +42,21 @@ export default function AffiliateLogin() {
         body: JSON.stringify(formData),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Login failed");
-      }
-
       const data = await response.json();
+
+      if (!response.ok) {
+        // Check if user needs to verify email
+        if (data.needsVerification && data.userId) {
+          navigate("/affiliate/verify", {
+            state: {
+              userId: data.userId,
+              email: data.email || formData.email
+            }
+          });
+          return;
+        }
+        throw new Error(data.error || "Login failed");
+      }
 
       // Store affiliate partner session
       localStorage.setItem("affiliate", JSON.stringify(data.partner));

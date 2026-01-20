@@ -59,7 +59,7 @@ export default function Dashboard() {
 
   const loadDashboardData = async () => {
     try {
-      setError("");
+    setError("");
 
       // Load partners
       const partnersResponse = await fetch("/api/partners");
@@ -72,13 +72,13 @@ export default function Dashboard() {
       const statsResponse = await fetch("/api/stats");
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
-        setStats({
-          totalPartners: statsData.total_partners || 0,
-          pendingPartners: statsData.pending_partners || 0,
-          totalClicks: statsData.total_clicks || 0,
-          totalConversions: statsData.total_conversions || 0,
-          totalEarnings: statsData.total_earnings || 0,
-        });
+      setStats({
+        totalPartners: statsData.total_partners || 0,
+        pendingPartners: statsData.pending_partners || 0,
+        totalClicks: statsData.total_clicks || 0,
+        totalConversions: statsData.total_conversions || 0,
+        totalEarnings: statsData.total_earnings || 0,
+      });
       }
 
       setLoading(false);
@@ -96,8 +96,8 @@ export default function Dashboard() {
     return (
       <AdminLayout>
         <div className="flex items-center justify-center h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
             <p className="text-gray-600">Loading dashboard...</p>
           </div>
         </div>
@@ -108,7 +108,7 @@ export default function Dashboard() {
   return (
     <AdminLayout>
       <div className="p-8">
-        {/* Header */}
+      {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
@@ -131,18 +131,18 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
           <Link to="/admin/partners">
             <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
                     <p className="text-sm font-medium text-gray-600">Active Partners</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {stats.totalPartners || 0}
-                    </p>
-                  </div>
-                  <Users className="h-8 w-8 text-blue-600" />
+                  <p className="text-2xl font-bold text-gray-900">
+                    {stats.totalPartners || 0}
+                  </p>
                 </div>
-              </CardContent>
-            </Card>
+                <Users className="h-8 w-8 text-blue-600" />
+              </div>
+            </CardContent>
+          </Card>
           </Link>
 
           <Link to="/admin/pending">
@@ -151,58 +151,58 @@ export default function Dashboard() {
                 stats.pendingPartners > 0 ? "border-amber-300 bg-amber-50" : ""
               }`}
             >
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">
-                      Pending Approval
-                    </p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {stats.pendingPartners || 0}
-                    </p>
-                  </div>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">
+                    Pending Approval
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {stats.pendingPartners || 0}
+                  </p>
+                </div>
                   <Clock
                     className={`h-8 w-8 ${
                       stats.pendingPartners > 0 ? "text-amber-600" : "text-gray-400"
                     }`}
                   />
-                </div>
-              </CardContent>
-            </Card>
+              </div>
+            </CardContent>
+          </Card>
           </Link>
 
           <Link to="/admin/clicks">
             <Card className="hover:shadow-lg transition-shadow cursor-pointer hover:border-green-300">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
                     <p className="text-sm font-medium text-gray-600">Total Clicks</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {(stats.totalClicks || 0).toLocaleString()}
-                    </p>
-                    <p className="text-xs text-green-600 mt-1">Click to view details</p>
-                  </div>
-                  <MousePointer className="h-8 w-8 text-green-600" />
+                  <p className="text-2xl font-bold text-gray-900">
+                    {(stats.totalClicks || 0).toLocaleString()}
+                  </p>
+                  <p className="text-xs text-green-600 mt-1">Click to view details</p>
                 </div>
-              </CardContent>
-            </Card>
+                <MousePointer className="h-8 w-8 text-green-600" />
+              </div>
+            </CardContent>
+          </Card>
           </Link>
 
           <Link to="/admin/conversions">
             <Card className="hover:shadow-lg transition-shadow cursor-pointer hover:border-purple-300">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
                     <p className="text-sm font-medium text-gray-600">Conversions</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {stats.totalConversions || 0}
-                    </p>
-                    <p className="text-xs text-purple-600 mt-1">Click to view leads</p>
-                  </div>
-                  <TrendingUp className="h-8 w-8 text-purple-600" />
+                  <p className="text-2xl font-bold text-gray-900">
+                    {stats.totalConversions || 0}
+                  </p>
+                  <p className="text-xs text-purple-600 mt-1">Click to view leads</p>
                 </div>
-              </CardContent>
-            </Card>
+                <TrendingUp className="h-8 w-8 text-purple-600" />
+              </div>
+            </CardContent>
+          </Card>
           </Link>
 
           <Card>
@@ -290,7 +290,7 @@ export default function Dashboard() {
                 <Button variant="outline" size="sm">
                   View All Partners
                   <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
+                  </Button>
               </Link>
             </div>
           </CardHeader>
@@ -335,7 +335,7 @@ export default function Dashboard() {
                     </div>
                     <Badge
                       variant={partner.status === "active" ? "default" : "secondary"}
-                      className={partner.status === "active" ? "bg-green-600" : ""}
+                          className={partner.status === "active" ? "bg-green-600" : ""}
                     >
                       {partner.status}
                     </Badge>

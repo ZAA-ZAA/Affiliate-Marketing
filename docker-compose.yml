@@ -40,6 +40,9 @@ services:
       - DB_PASSWORD=root123
       - DB_NAME=gleen_affiliate
       - FLASK_ENV=development
+      - SMTP_EMAIL=stormfire339@gmail.com
+      - SMTP_PASSWORD=opppagayhlcgeyvf
+      - SMTP_SENDER_NAME=GLEENT Affiliate Program
     depends_on:
       mysql:
         condition: service_healthy

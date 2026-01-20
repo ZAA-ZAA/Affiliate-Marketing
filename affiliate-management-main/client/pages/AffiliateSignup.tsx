@@ -53,18 +53,34 @@ export default function AffiliateSignup() {
         body: JSON.stringify(formData),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Signup failed");
-      }
-
       const data = await response.json();
 
-      // Store affiliate partner session (will have status 'pending')
-      localStorage.setItem("affiliate", JSON.stringify(data.partner));
+      if (!response.ok) {
+        // Check if user needs verification (already registered but not verified)
+        if (data.needsVerification && data.userId) {
+          navigate("/affiliate/verify", {
+            state: {
+              userId: data.userId,
+              email: formData.email
+            }
+          });
+          return;
+        }
+        throw new Error(data.error || "Signup failed");
+      }
 
-      // Redirect to affiliate dashboard (will show pending approval message)
-      navigate("/affiliate/dashboard");
+      // Signup successful - redirect to email verification
+      if (data.needsVerification) {
+        navigate("/affiliate/verify", {
+          state: {
+            userId: data.userId,
+            email: data.email
+          }
+        });
+      } else {
+        // Fallback - shouldn't happen normally
+        navigate("/affiliate/login");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {

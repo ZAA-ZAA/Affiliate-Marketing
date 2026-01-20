@@ -117,7 +117,6 @@ def create_link():
                 (partnerId,),
                 fetch_one=True
             )
-            
             if not partner:
                 return jsonify({'error': 'Partner not found'}), 404
         

@@ -22,6 +22,7 @@ import ConversionDetails from "./pages/admin/ConversionDetails";
 import AffiliateSignup from "./pages/AffiliateSignup";
 import AffiliateLogin from "./pages/AffiliateLogin";
 import AffiliateDashboard from "./pages/AffiliateDashboard";
+import EmailVerification from "./pages/EmailVerification";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -52,6 +53,7 @@ const App = () => (
           {/* Affiliate Portal */}
           <Route path="/affiliate/signup" element={<AffiliateSignup />} />
           <Route path="/affiliate/login" element={<AffiliateLogin />} />
+          <Route path="/affiliate/verify" element={<EmailVerification />} />
           <Route
             path="/affiliate/dashboard"
             element={<AffiliateDashboard />}

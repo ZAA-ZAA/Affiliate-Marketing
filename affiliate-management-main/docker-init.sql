@@ -13,10 +13,14 @@ CREATE TABLE IF NOT EXISTS users (
     last_name VARCHAR(100) NOT NULL,
     mobile_number VARCHAR(20),
     role ENUM('admin', 'affiliate') NOT NULL DEFAULT 'affiliate',
+    email_verified BOOLEAN DEFAULT FALSE,
+    verification_code VARCHAR(6),
+    verification_code_expires TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_email (email),
-    INDEX idx_role (role)
+    INDEX idx_role (role),
+    INDEX idx_email_verified (email_verified)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Partners table (affiliate partners)

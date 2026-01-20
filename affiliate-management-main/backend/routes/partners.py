@@ -156,11 +156,12 @@ def get_pending_partners():
     """Get all pending affiliate partners awaiting approval"""
     try:
         partners = execute_query(
-            """SELECT p.id, u.email, u.first_name, u.last_name, u.mobile_number, p.commission_rate, p.status, p.created_at
+            """SELECT p.id, u.id as user_id, u.email, u.first_name, u.last_name, u.mobile_number, 
+                      u.email_verified, p.commission_rate, p.status, p.created_at
                FROM partners p
                JOIN users u ON p.user_id = u.id
                WHERE p.status = 'pending'
-               ORDER BY p.created_at DESC""",
+               ORDER BY u.email_verified DESC, p.created_at DESC""",
             fetch_all=True
         )
         
@@ -168,10 +169,12 @@ def get_pending_partners():
         for partner in partners:
             pending_list.append({
                 'id': partner['id'],
+                'userId': partner['user_id'],
                 'email': partner['email'],
                 'firstName': partner['first_name'],
                 'lastName': partner['last_name'],
                 'mobileNumber': partner['mobile_number'],
+                'emailVerified': bool(partner['email_verified']),
                 'commissionRate': float(partner['commission_rate']),
                 'status': partner['status'],
                 'joinedDate': partner['created_at'].strftime('%Y-%m-%d %H:%M') if partner['created_at'] else None
@@ -185,11 +188,14 @@ def get_pending_partners():
 
 @bp.route('/api/partners/<partner_id>/approve', methods=['POST'])
 def approve_partner(partner_id):
-    """Approve a pending affiliate partner"""
+    """Approve a pending affiliate partner (only if email is verified)"""
     try:
-        # Check if partner exists and is pending
+        # Check if partner exists with user info
         partner = execute_query(
-            "SELECT id, status FROM partners WHERE id = %s",
+            """SELECT p.id, p.status, u.email_verified, u.email
+               FROM partners p
+               JOIN users u ON p.user_id = u.id
+               WHERE p.id = %s""",
             (partner_id,),
             fetch_one=True
         )
@@ -199,6 +205,13 @@ def approve_partner(partner_id):
         
         if partner['status'] != 'pending':
             return jsonify({'error': 'Partner is not in pending status'}), 400
+        
+        # Check if email is verified - BLOCK approval if not verified
+        if not partner['email_verified']:
+            return jsonify({
+                'error': 'Cannot approve partner. Email is not verified yet.',
+                'emailVerified': False
+            }), 400
         
         # Update status to active
         execute_query(
