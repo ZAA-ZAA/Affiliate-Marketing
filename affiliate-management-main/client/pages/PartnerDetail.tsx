@@ -66,7 +66,23 @@ export default function PartnerDetail() {
     title: "",
     description: "",
     useCustomUrl: false,
+    source: "Direct",
+    customSource: "",
   });
+
+  const PREDEFINED_SOURCES = [
+    "Facebook",
+    "Instagram",
+    "TikTok",
+    "YouTube",
+    "Twitter/X",
+    "LinkedIn",
+    "Email",
+    "Website",
+    "Blog",
+    "Forum",
+    "Direct",
+  ];
 
   // Predefined destination URLs
   // Demo form is a separate project running on port 3001
@@ -252,10 +268,17 @@ export default function PartnerDetail() {
     setError("");
 
     try {
+      const finalSource = newLink.source === "Custom" ? newLink.customSource : newLink.source;
       const response = await fetch("/api/links", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...newLink, partnerId }),
+        body: JSON.stringify({ 
+          originalUrl: newLink.originalUrl,
+          title: newLink.title,
+          description: newLink.description,
+          source: finalSource,
+          partnerId,
+        }),
       });
 
       if (!response.ok) {
@@ -267,7 +290,7 @@ export default function PartnerDetail() {
 
       setLinks((prev) => [data, ...prev]);
       setSuccess("Link created successfully!");
-      setNewLink({ originalUrl: "", title: "", description: "", useCustomUrl: false });
+      setNewLink({ originalUrl: "", title: "", description: "", useCustomUrl: false, source: "Direct", customSource: "" });
 
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
@@ -522,6 +545,47 @@ export default function PartnerDetail() {
                     </DialogDescription>
                   </DialogHeader>
                   <form onSubmit={handleCreateLink} className="space-y-4">
+                    {/* Source Selection */}
+                    <div className="space-y-2">
+                      <Label>Traffic Source</Label>
+                      <Select
+                        value={newLink.source}
+                        onValueChange={(value) =>
+                          setNewLink((prev) => ({ ...prev, source: value }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select where this link will be used..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PREDEFINED_SOURCES.map((source) => (
+                            <SelectItem key={source} value={source}>
+                              {source}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="Custom">
+                            <div className="flex items-center gap-2">
+                              <Code className="h-4 w-4" />
+                              <span>Custom Source</span>
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {newLink.source === "Custom" && (
+                        <Input
+                          placeholder="Enter custom source name..."
+                          value={newLink.customSource}
+                          onChange={(e) =>
+                            setNewLink((prev) => ({
+                              ...prev,
+                              customSource: e.target.value,
+                            }))
+                          }
+                          required
+                        />
+                      )}
+                    </div>
+
                     <div className="space-y-2">
                       <Label>Destination URL</Label>
                       <div className="space-y-2">

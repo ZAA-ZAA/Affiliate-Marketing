@@ -5,6 +5,9 @@ from datetime import datetime
 
 bp = Blueprint('tracking', __name__)
 
+# Separator for general link affiliate IDs: {link_code}-P-{partner_id}
+GENERAL_LINK_SEPARATOR = '-P-'
+
 def extract_domain(url):
     """Extract domain from URL (e.g., facebook.com from https://www.facebook.com/page)"""
     if not url:
@@ -19,6 +22,19 @@ def extract_domain(url):
     except:
         return 'Direct'
 
+def parse_affiliate_id(affiliate_id):
+    """
+    Parse affiliate_id to extract link_code and partner_id
+    For general links: {link_code}-P-{partner_id}
+    For specific links: {link_code}
+    Returns: (link_code, partner_id from affiliate_id or None)
+    """
+    if affiliate_id and GENERAL_LINK_SEPARATOR in affiliate_id:
+        parts = affiliate_id.split(GENERAL_LINK_SEPARATOR)
+        if len(parts) == 2:
+            return parts[0], parts[1]
+    return affiliate_id, None
+
 @bp.route('/api/track', methods=['POST'])
 def track_click():
     """Track a click on an affiliate link"""
@@ -31,18 +47,35 @@ def track_click():
         if not affiliate_id:
             return jsonify({'error': 'affiliate_id required'}), 400
         
-        # Find partner by affiliate_id (link_code)
+        # Parse affiliate_id to handle general links
+        link_code, partner_id_from_affiliate = parse_affiliate_id(affiliate_id)
+        
+        # Find link by link_code
         link = execute_query(
-            "SELECT id, partner_id FROM affiliate_links WHERE link_code = %s",
-            (affiliate_id,),
+            "SELECT id, partner_id, source, is_general FROM affiliate_links WHERE link_code = %s",
+            (link_code,),
             fetch_one=True
         )
         
         if not link:
             return jsonify({'error': 'Invalid affiliate ID'}), 404
         
-        # Extract referrer domain
-        referrer_domain = extract_domain(referrer)
+        # Determine the partner_id
+        # For general links, use the partner_id from the affiliate_id
+        # For specific links, use the partner_id from the link
+        if link['is_general'] and partner_id_from_affiliate:
+            # Verify the partner exists
+            partner = execute_query(
+                "SELECT id FROM partners WHERE id = %s",
+                (partner_id_from_affiliate,),
+                fetch_one=True
+            )
+            partner_id = partner_id_from_affiliate if partner else None
+        else:
+            partner_id = link['partner_id']
+        
+        # Use the source from the link
+        link_source = link['source'] or 'Direct'
         
         # Track the click
         click_id = generate_uuid()
@@ -54,16 +87,22 @@ def track_click():
         execute_query(
             """INSERT INTO link_clicks (id, link_id, partner_id, affiliate_id, ip_address, user_agent, referrer, referrer_domain, page_url)
                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-            (click_id, link['id'], link['partner_id'], affiliate_id, ip_address, user_agent, referrer, referrer_domain, page_url)
+            (click_id, link['id'], partner_id, affiliate_id, ip_address, user_agent, referrer, link_source, page_url)
         )
         
-        # Update link clicks count
+        # Update link clicks count (for the link itself)
         execute_query(
             "UPDATE affiliate_links SET clicks = clicks + 1 WHERE id = %s",
             (link['id'],)
         )
         
-        return jsonify({'success': True, 'click_id': click_id}), 200
+        return jsonify({
+            'success': True, 
+            'click_id': click_id,
+            'source': link_source,
+            'is_general': bool(link['is_general']),
+            'partner_id': partner_id
+        }), 200
         
     except Exception as e:
         print(f"Error tracking click: {e}")
@@ -79,15 +118,29 @@ def track_pixel():
     affiliate_id = request.args.get('affiliate_id') or request.args.get('affiliateId')
     if affiliate_id:
         try:
+            # Parse affiliate_id to handle general links
+            link_code, partner_id_from_affiliate = parse_affiliate_id(affiliate_id)
+            
             link = execute_query(
-                "SELECT id, partner_id FROM affiliate_links WHERE link_code = %s",
-                (affiliate_id,),
+                "SELECT id, partner_id, source, is_general FROM affiliate_links WHERE link_code = %s",
+                (link_code,),
                 fetch_one=True
             )
             
             if link:
+                # Determine the partner_id
+                if link['is_general'] and partner_id_from_affiliate:
+                    partner = execute_query(
+                        "SELECT id FROM partners WHERE id = %s",
+                        (partner_id_from_affiliate,),
+                        fetch_one=True
+                    )
+                    partner_id = partner_id_from_affiliate if partner else None
+                else:
+                    partner_id = link['partner_id']
+                
                 referrer = request.headers.get('Referer', '')
-                referrer_domain = extract_domain(referrer)
+                link_source = link['source'] or 'Direct'
                 
                 click_id = generate_uuid()
                 ip_address = request.headers.get('X-Forwarded-For', request.remote_addr)
@@ -98,7 +151,7 @@ def track_pixel():
                 execute_query(
                     """INSERT INTO link_clicks (id, link_id, partner_id, affiliate_id, ip_address, user_agent, referrer, referrer_domain)
                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
-                    (click_id, link['id'], link['partner_id'], affiliate_id, ip_address, user_agent, referrer, referrer_domain)
+                    (click_id, link['id'], partner_id, affiliate_id, ip_address, user_agent, referrer, link_source)
                 )
                 
                 execute_query(

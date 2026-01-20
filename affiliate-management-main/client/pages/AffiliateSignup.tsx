@@ -19,6 +19,7 @@ export default function AffiliateSignup() {
     password: "",
     firstName: "",
     lastName: "",
+    mobileNumber: "",
   });
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -143,6 +144,19 @@ export default function AffiliateSignup() {
                   type="email"
                   placeholder="partner@example.com"
                   value={formData.email}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="mobileNumber">Mobile Number</Label>
+                <Input
+                  id="mobileNumber"
+                  name="mobileNumber"
+                  type="tel"
+                  placeholder="+63 9XX XXX XXXX"
+                  value={formData.mobileNumber}
                   onChange={handleChange}
                   required
                 />

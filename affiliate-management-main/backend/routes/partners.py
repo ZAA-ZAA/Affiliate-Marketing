@@ -156,7 +156,7 @@ def get_pending_partners():
     """Get all pending affiliate partners awaiting approval"""
     try:
         partners = execute_query(
-            """SELECT p.id, u.email, u.first_name, u.last_name, p.commission_rate, p.status, p.created_at
+            """SELECT p.id, u.email, u.first_name, u.last_name, u.mobile_number, p.commission_rate, p.status, p.created_at
                FROM partners p
                JOIN users u ON p.user_id = u.id
                WHERE p.status = 'pending'
@@ -171,6 +171,7 @@ def get_pending_partners():
                 'email': partner['email'],
                 'firstName': partner['first_name'],
                 'lastName': partner['last_name'],
+                'mobileNumber': partner['mobile_number'],
                 'commissionRate': float(partner['commission_rate']),
                 'status': partner['status'],
                 'joinedDate': partner['created_at'].strftime('%Y-%m-%d %H:%M') if partner['created_at'] else None

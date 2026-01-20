@@ -12,7 +12,13 @@ import Setup from "./pages/Setup";
 import Dashboard from "./pages/Dashboard";
 import PartnerDetail from "./pages/PartnerDetail";
 import TrackingInstructions from "./pages/TrackingInstructions";
-// Demo form is now a separate project: demo-form-app (runs on port 3001)
+// Admin pages with sidebar
+import Partners from "./pages/admin/Partners";
+import PendingApproval from "./pages/admin/PendingApproval";
+import Links from "./pages/admin/Links";
+import ClickDetails from "./pages/admin/ClickDetails";
+import ConversionDetails from "./pages/admin/ConversionDetails";
+// Affiliate pages
 import AffiliateSignup from "./pages/AffiliateSignup";
 import AffiliateLogin from "./pages/AffiliateLogin";
 import AffiliateDashboard from "./pages/AffiliateDashboard";
@@ -30,13 +36,20 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
           <Route path="/setup" element={<Setup />} />
+          {/* Admin Dashboard and Management */}
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/admin/partners" element={<Partners />} />
+          <Route path="/admin/pending" element={<PendingApproval />} />
+          <Route path="/admin/links" element={<Links />} />
+          <Route path="/admin/clicks" element={<ClickDetails />} />
+          <Route path="/admin/conversions" element={<ConversionDetails />} />
+          {/* Partner Details */}
           <Route path="/partner/:partnerId" element={<PartnerDetail />} />
           <Route
             path="/tracking-instructions/:partnerId"
             element={<TrackingInstructions />}
           />
-          {/* Demo form is at http://localhost:3001 (separate project: demo-form-app) */}
+          {/* Affiliate Portal */}
           <Route path="/affiliate/signup" element={<AffiliateSignup />} />
           <Route path="/affiliate/login" element={<AffiliateLogin />} />
           <Route

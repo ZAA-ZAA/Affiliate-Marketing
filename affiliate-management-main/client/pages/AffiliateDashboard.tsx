@@ -405,57 +405,85 @@ export default function AffiliateDashboard() {
               {links.map((link) => (
                 <div
                   key={link.id}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                  className={`flex items-center justify-between p-4 rounded-lg transition-colors ${
+                    (link as any).is_enabled === false
+                      ? "bg-gray-200 opacity-60"
+                      : "bg-gray-50 hover:bg-gray-100"
+                  }`}
                 >
                   <div className="flex-1">
-                    <h3 className="font-medium text-gray-900">{link.title}</h3>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-medium text-gray-900">{link.title}</h3>
+                      {(link as any).is_general && (
+                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
+                          General
+                        </Badge>
+                      )}
+                      {(link as any).source && (
+                        <Badge variant="secondary" className="text-xs">
+                          {(link as any).source}
+                        </Badge>
+                      )}
+                      {(link as any).is_enabled === false && (
+                        <Badge variant="destructive" className="text-xs">
+                          Disabled
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-sm text-gray-500 mb-2">
                       {link.description}
                     </p>
-                    <div className="flex items-center space-x-4 text-sm">
-                      <span className="text-blue-600 font-mono text-xs break-all">
-                        {(() => {
-                          const url = new URL(link.original_url);
-                          url.searchParams.set("affiliate-id", link.link_code);
-                          return url.toString();
-                        })()}
-                      </span>
-                      <Button
-                        variant={
-                          copiedLinkId === link.link_code
-                            ? "default"
-                            : "outline"
-                        }
-                        size="sm"
-                        onClick={() => copyLinkToClipboard(link)}
-                        disabled={copiedLinkId === link.link_code}
-                      >
-                        {copiedLinkId === link.link_code ? (
-                          <>
-                            <div className="h-3 w-3 mr-1 rounded-full bg-green-500"></div>
-                            Copied!
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="h-3 w-3 mr-1" />
-                            Copy Link
-                          </>
-                        )}
-                      </Button>
-                      <a
-                        href={(() => {
-                          const url = new URL(link.original_url);
-                          url.searchParams.set("affiliate-id", link.link_code);
-                          return url.toString();
-                        })()}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline flex items-center"
-                      >
-                        <ExternalLink className="h-3 w-3 mr-1" />
-                        Visit
-                      </a>
-                    </div>
+                    {(link as any).is_enabled !== false && (
+                      <div className="flex items-center space-x-4 text-sm">
+                        <span className="text-blue-600 font-mono text-xs break-all">
+                          {(() => {
+                            const url = new URL(link.original_url);
+                            url.searchParams.set("affiliate-id", link.link_code);
+                            return url.toString();
+                          })()}
+                        </span>
+                        <Button
+                          variant={
+                            copiedLinkId === link.link_code
+                              ? "default"
+                              : "outline"
+                          }
+                          size="sm"
+                          onClick={() => copyLinkToClipboard(link)}
+                          disabled={copiedLinkId === link.link_code}
+                        >
+                          {copiedLinkId === link.link_code ? (
+                            <>
+                              <div className="h-3 w-3 mr-1 rounded-full bg-green-500"></div>
+                              Copied!
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-3 w-3 mr-1" />
+                              Copy Link
+                            </>
+                          )}
+                        </Button>
+                        <a
+                          href={(() => {
+                            const url = new URL(link.original_url);
+                            url.searchParams.set("affiliate-id", link.link_code);
+                            return url.toString();
+                          })()}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline flex items-center"
+                        >
+                          <ExternalLink className="h-3 w-3 mr-1" />
+                          Visit
+                        </a>
+                      </div>
+                    )}
+                    {(link as any).is_enabled === false && (
+                      <p className="text-xs text-red-500 mt-1">
+                        This link has been disabled by the administrator
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex items-center space-x-6">

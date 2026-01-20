@@ -128,6 +128,7 @@ def affiliate_signup():
         password = data.get('password')
         firstName = data.get('firstName')
         lastName = data.get('lastName')
+        mobileNumber = data.get('mobileNumber', '')
         
         if not all([email, password, firstName, lastName]):
             return jsonify({'error': 'Missing required fields'}), 400
@@ -147,8 +148,8 @@ def affiliate_signup():
         password_hash = hash_password(password)
         
         execute_query(
-            "INSERT INTO users (id, email, password_hash, first_name, last_name, role) VALUES (%s, %s, %s, %s, %s, 'affiliate')",
-            (user_id, email, password_hash, firstName, lastName)
+            "INSERT INTO users (id, email, password_hash, first_name, last_name, mobile_number, role) VALUES (%s, %s, %s, %s, %s, %s, 'affiliate')",
+            (user_id, email, password_hash, firstName, lastName, mobileNumber)
         )
         
         # Create partner record with pending status (admin will approve)
@@ -165,6 +166,7 @@ def affiliate_signup():
                 'email': email,
                 'firstName': firstName,
                 'lastName': lastName,
+                'mobileNumber': mobileNumber,
                 'commissionRate': 10.00,
                 'status': 'pending'
             }

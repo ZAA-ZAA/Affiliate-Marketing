@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash VARCHAR(255) NOT NULL,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
+    mobile_number VARCHAR(20),
     role ENUM('admin', 'affiliate') NOT NULL DEFAULT 'affiliate',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -34,11 +35,14 @@ CREATE TABLE IF NOT EXISTS partners (
 -- Affiliate links table
 CREATE TABLE IF NOT EXISTS affiliate_links (
     id VARCHAR(36) PRIMARY KEY,
-    partner_id VARCHAR(36) NOT NULL,
+    partner_id VARCHAR(36),
     original_url TEXT NOT NULL,
     link_code VARCHAR(50) UNIQUE NOT NULL,
     title VARCHAR(255) NOT NULL,
     description TEXT,
+    source VARCHAR(100) DEFAULT 'direct',
+    is_general BOOLEAN DEFAULT FALSE,
+    is_enabled BOOLEAN DEFAULT TRUE,
     clicks INT DEFAULT 0,
     conversions INT DEFAULT 0,
     earnings DECIMAL(10,2) DEFAULT 0.00,
@@ -46,14 +50,18 @@ CREATE TABLE IF NOT EXISTS affiliate_links (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (partner_id) REFERENCES partners(id) ON DELETE CASCADE,
     INDEX idx_partner_id (partner_id),
-    INDEX idx_link_code (link_code)
+    INDEX idx_link_code (link_code),
+    INDEX idx_is_general (is_general),
+    INDEX idx_is_enabled (is_enabled),
+    INDEX idx_source (source)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Link clicks tracking table (with referrer domain tracking)
+-- Note: partner_id is nullable to support general links which don't have a specific partner
 CREATE TABLE IF NOT EXISTS link_clicks (
     id VARCHAR(36) PRIMARY KEY,
     link_id VARCHAR(36),
-    partner_id VARCHAR(36) NOT NULL,
+    partner_id VARCHAR(36),
     affiliate_id VARCHAR(50),
     ip_address VARCHAR(45),
     user_agent TEXT,
@@ -62,7 +70,7 @@ CREATE TABLE IF NOT EXISTS link_clicks (
     page_url TEXT,
     clicked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (link_id) REFERENCES affiliate_links(id) ON DELETE SET NULL,
-    FOREIGN KEY (partner_id) REFERENCES partners(id) ON DELETE CASCADE,
+    FOREIGN KEY (partner_id) REFERENCES partners(id) ON DELETE SET NULL,
     INDEX idx_link_id (link_id),
     INDEX idx_partner_id (partner_id),
     INDEX idx_affiliate_id (affiliate_id),
