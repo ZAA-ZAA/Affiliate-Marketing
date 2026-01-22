@@ -60,13 +60,22 @@ def get_partner_stats_from_clicks(partner_id):
         )
         total_conversions = conversions_result['count'] if conversions_result else 0
         
-        # Total earnings (from partner-specific links only)
-        earnings_result = execute_query(
+        # Total earnings (affiliate_links + partner_earnings)
+        link_earnings = execute_query(
             "SELECT COALESCE(SUM(earnings), 0) as total FROM affiliate_links WHERE partner_id = %s",
             (partner_id,),
             fetch_one=True
         )
-        total_earnings = float(earnings_result['total']) if earnings_result else 0.0
+        link_earnings_total = float(link_earnings['total']) if link_earnings else 0.0
+        
+        pe_earnings = execute_query(
+            "SELECT COALESCE(SUM(amount), 0) as total FROM partner_earnings WHERE partner_id = %s",
+            (partner_id,),
+            fetch_one=True
+        )
+        pe_earnings_total = float(pe_earnings['total']) if pe_earnings else 0.0
+        
+        total_earnings = link_earnings_total + pe_earnings_total
         
         return {
             'clicks': total_clicks,
@@ -261,7 +270,23 @@ def get_partner_links(partner_id):
         # Sort by enabled first, then by created_at
         links_list.sort(key=lambda x: (not x['is_enabled'], x['created_at']), reverse=True)
         
-        return jsonify(links_list), 200
+        # Calculate total earnings including partner_earnings
+        link_earnings_total = sum(float(link.get('earnings', 0)) for link in links_list)
+        pe_earnings = execute_query(
+            "SELECT COALESCE(SUM(amount), 0) as total FROM partner_earnings WHERE partner_id = %s",
+            (partner_id,),
+            fetch_one=True
+        )
+        pe_earnings_total = float(pe_earnings['total']) if pe_earnings else 0.0
+        total_earnings = link_earnings_total + pe_earnings_total
+        
+        # Return links array with stats
+        return jsonify({
+            'links': links_list,
+            'stats': {
+                'totalEarnings': total_earnings
+            }
+        }), 200
         
     except Exception as e:
         print(f"Error fetching partner links: {e}")

@@ -67,7 +67,12 @@ export default function AffiliateDashboard() {
       if (!linksResponse.ok) {
         throw new Error("Failed to load links");
       }
-      const linksData = await linksResponse.json();
+      const responseData = await linksResponse.json();
+      
+      // Handle both old format (array) and new format (object with links and stats)
+      const linksData = Array.isArray(responseData) ? responseData : (responseData.links || []);
+      const responseStats = responseData.stats || {};
+      
       setLinks(linksData);
 
       // Calculate stats from links
@@ -79,10 +84,13 @@ export default function AffiliateDashboard() {
         (sum: number, link: AffiliateLink) => sum + (link.conversions || 0),
         0
       );
-      const totalEarnings = linksData.reduce(
-        (sum: number, link: AffiliateLink) => sum + (link.earnings || 0),
-        0
-      );
+      // Use totalEarnings from API (includes partner_earnings) or calculate from links as fallback
+      const totalEarnings = responseStats.totalEarnings !== undefined 
+        ? responseStats.totalEarnings 
+        : linksData.reduce(
+            (sum: number, link: AffiliateLink) => sum + (link.earnings || 0),
+            0
+          );
 
       setStats({
         totalClicks,

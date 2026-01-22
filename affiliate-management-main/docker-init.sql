@@ -103,6 +103,21 @@ CREATE TABLE IF NOT EXISTS demo_requests (
     INDEX idx_referrer_domain (referrer_domain)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Partner earnings table (external API / curl – add earnings per partner)
+CREATE TABLE IF NOT EXISTS partner_earnings (
+    id VARCHAR(36) PRIMARY KEY,
+    partner_id VARCHAR(36) NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    earned_at TIMESTAMP NOT NULL,
+    client_name VARCHAR(255),
+    status VARCHAR(50) DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (partner_id) REFERENCES partners(id) ON DELETE CASCADE,
+    INDEX idx_partner_id (partner_id),
+    INDEX idx_earned_at (earned_at),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- API Keys table for external integrations (demo-form-app)
 CREATE TABLE IF NOT EXISTS api_keys (
     id VARCHAR(36) PRIMARY KEY,

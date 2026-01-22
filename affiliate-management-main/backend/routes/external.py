@@ -219,6 +219,77 @@ def add_lead():
         print(f"Error adding lead: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
+@bp.route('/api/v1/partner/earnings', methods=['POST'])
+@require_api_key
+def add_partner_earnings():
+    """
+    Add partner earnings (external API – call via curl, no login).
+    Requires X-API-Key header. JSON body: partner_id, amount, date, client_name, status.
+    """
+    try:
+        data = request.json or {}
+        partner_id = data.get('partner_id') or data.get('partner-id')
+        amount = data.get('amount')
+        date_val = data.get('date')
+        client_name = data.get('client_name') or data.get('client-name') or ''
+        status = data.get('status') or 'pending'
+
+        if not partner_id:
+            return jsonify({'error': 'partner_id is required'}), 400
+        if amount is None:
+            return jsonify({'error': 'amount is required'}), 400
+
+        try:
+            amount = float(amount)
+        except (TypeError, ValueError):
+            return jsonify({'error': 'amount must be a number'}), 400
+        if amount < 0:
+            return jsonify({'error': 'amount must be >= 0'}), 400
+
+        partner = execute_query(
+            "SELECT id FROM partners WHERE id = %s",
+            (partner_id,),
+            fetch_one=True
+        )
+        if not partner:
+            return jsonify({'error': 'Partner not found'}), 404
+
+        earned_at = None
+        if date_val:
+            s = str(date_val).replace('Z', '').strip()[:19]
+            for fmt in ('%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d'):
+                try:
+                    earned_at = datetime.strptime(s, fmt)
+                    break
+                except ValueError:
+                    continue
+            if earned_at is None:
+                return jsonify({'error': 'Invalid date format (use YYYY-MM-DD or ISO datetime)'}), 400
+        else:
+            earned_at = datetime.utcnow()
+
+        eid = generate_uuid()
+        execute_query(
+            """INSERT INTO partner_earnings (id, partner_id, amount, earned_at, client_name, status)
+               VALUES (%s, %s, %s, %s, %s, %s)""",
+            (eid, partner_id, amount, earned_at, client_name or None, status)
+        )
+
+        return jsonify({
+            'success': True,
+            'message': 'Earnings added',
+            'id': eid,
+            'partner_id': partner_id,
+            'amount': amount,
+            'earned_at': earned_at.isoformat(),
+            'client_name': client_name or None,
+            'status': status
+        }), 201
+
+    except Exception as e:
+        print(f"Error adding partner earnings: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
 @bp.route('/api/clicks/details', methods=['GET'])
 def get_click_details():
     """Get detailed click information grouped by source (from link)"""

@@ -226,8 +226,10 @@ export default function PartnerDetail() {
         );
       }
 
-      const linksData = await linksResponse.json();
-      console.log("Links data:", linksData);
+      const responseData = await linksResponse.json();
+      console.log("Links data:", responseData);
+      // Handle both old format (array) and new format (object with links and stats)
+      const linksData = Array.isArray(responseData) ? responseData : (responseData.links || []);
       setLinks(linksData);
 
       setLoading(false);

@@ -282,11 +282,16 @@ def get_stats():
             fetch_one=True
         )['count']
         
-        # Total earnings (sum from affiliate_links)
-        total_earnings = execute_query(
+        # Total earnings (affiliate_links + partner_earnings)
+        link_earnings = execute_query(
             "SELECT COALESCE(SUM(earnings), 0) as total FROM affiliate_links",
             fetch_one=True
         )['total'] or 0
+        pe_earnings = execute_query(
+            "SELECT COALESCE(SUM(amount), 0) as total FROM partner_earnings",
+            fetch_one=True
+        )['total'] or 0
+        total_earnings = float(link_earnings) + float(pe_earnings)
         
         return jsonify({
             'total_partners': total_partners,
@@ -317,17 +322,23 @@ def get_partner_stats(partner_id):
             fetch_one=True
         )['count']
         
-        # Total earnings
-        total_earnings = execute_query(
+        # Total earnings (affiliate_links + partner_earnings)
+        link_earnings = execute_query(
             "SELECT COALESCE(SUM(earnings), 0) as total FROM affiliate_links WHERE partner_id = %s",
             (partner_id,),
             fetch_one=True
         )['total'] or 0
+        pe_earnings = execute_query(
+            "SELECT COALESCE(SUM(amount), 0) as total FROM partner_earnings WHERE partner_id = %s",
+            (partner_id,),
+            fetch_one=True
+        )['total'] or 0
+        total_earnings = float(link_earnings) + float(pe_earnings)
         
         return {
             'total_clicks': total_clicks,
             'total_conversions': total_conversions,
-            'total_earnings': float(total_earnings)
+            'total_earnings': total_earnings
         }
     except Exception as e:
         print(f"Error getting partner stats: {e}")
