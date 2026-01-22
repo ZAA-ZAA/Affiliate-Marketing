@@ -239,6 +239,13 @@ This allows tracking clicks and conversions per partner even for shared general 
 - `POST /api/external/track-click` - Track click (requires API key)
 - `POST /api/external/addlead` - Submit lead/conversion (requires API key)
 
+### Partner Earnings API (external integration)
+- `POST /api/v1/partner/earnings` - Add earnings per affiliate link (requires API key)
+  - **Parameters**: `affiliate_id` (link_code), `amount`, `date` (optional), `client_name` (optional), `status` (optional)
+  - **Example**: `{"affiliate_id": "LINK123", "amount": 150.50, "date": "2025-01-15", "client_name": "Acme Corp", "status": "pending"}`
+  - **For general links**: Use format `{link_code}-P-{partner_id}` (e.g., `"GENERAL123-P-abc456"`)
+  - See `TEST_PARTNER_EARNINGS.md` for detailed usage
+
 ## Database Schema
 
 | Table | Description |
@@ -248,6 +255,7 @@ This allows tracking clicks and conversions per partner even for shared general 
 | `affiliate_links` | Generated affiliate links (general & partner-specific) |
 | `link_clicks` | Click tracking with source and partner attribution |
 | `demo_requests` | Form submissions with full form data |
+| `partner_earnings` | External earnings per affiliate link (via API) |
 | `api_keys` | API keys for external integrations |
 
 ### Key Database Fields

@@ -223,19 +223,19 @@ def add_lead():
 @require_api_key
 def add_partner_earnings():
     """
-    Add partner earnings (external API – call via curl, no login).
-    Requires X-API-Key header. JSON body: partner_id, amount, date, client_name, status.
+    Add partner earnings per affiliate link (external API – call via curl, no login).
+    Requires X-API-Key header. JSON body: affiliate_id (link_code), amount, date, client_name, status.
     """
     try:
         data = request.json or {}
-        partner_id = data.get('partner_id') or data.get('partner-id')
+        affiliate_id = data.get('affiliate_id') or data.get('affiliate-id') or data.get('affiliateId')
         amount = data.get('amount')
         date_val = data.get('date')
         client_name = data.get('client_name') or data.get('client-name') or ''
         status = data.get('status') or 'pending'
 
-        if not partner_id:
-            return jsonify({'error': 'partner_id is required'}), 400
+        if not affiliate_id:
+            return jsonify({'error': 'affiliate_id is required'}), 400
         if amount is None:
             return jsonify({'error': 'amount is required'}), 400
 
@@ -246,6 +246,36 @@ def add_partner_earnings():
         if amount < 0:
             return jsonify({'error': 'amount must be >= 0'}), 400
 
+        # Parse affiliate_id to handle general links
+        link_code, partner_id_from_affiliate = parse_affiliate_id(affiliate_id)
+        
+        # Find link by link_code
+        link = execute_query(
+            "SELECT id, partner_id, is_general FROM affiliate_links WHERE link_code = %s",
+            (link_code,),
+            fetch_one=True
+        )
+        
+        if not link:
+            return jsonify({'error': 'Affiliate link not found'}), 404
+        
+        # Determine the partner_id
+        if link['is_general'] and partner_id_from_affiliate:
+            # Verify the partner exists for general links
+            partner = execute_query(
+                "SELECT id FROM partners WHERE id = %s",
+                (partner_id_from_affiliate,),
+                fetch_one=True
+            )
+            if not partner:
+                return jsonify({'error': 'Partner not found'}), 404
+            partner_id = partner_id_from_affiliate
+        else:
+            partner_id = link['partner_id']
+            if not partner_id:
+                return jsonify({'error': 'Link has no associated partner'}), 400
+        
+        # Verify partner exists
         partner = execute_query(
             "SELECT id FROM partners WHERE id = %s",
             (partner_id,),
@@ -270,16 +300,18 @@ def add_partner_earnings():
 
         eid = generate_uuid()
         execute_query(
-            """INSERT INTO partner_earnings (id, partner_id, amount, earned_at, client_name, status)
-               VALUES (%s, %s, %s, %s, %s, %s)""",
-            (eid, partner_id, amount, earned_at, client_name or None, status)
+            """INSERT INTO partner_earnings (id, link_id, partner_id, affiliate_id, amount, earned_at, client_name, status)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+            (eid, link['id'], partner_id, affiliate_id, amount, earned_at, client_name or None, status)
         )
 
         return jsonify({
             'success': True,
             'message': 'Earnings added',
             'id': eid,
+            'link_id': link['id'],
             'partner_id': partner_id,
+            'affiliate_id': affiliate_id,
             'amount': amount,
             'earned_at': earned_at.isoformat(),
             'client_name': client_name or None,

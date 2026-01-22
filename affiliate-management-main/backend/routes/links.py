@@ -218,6 +218,15 @@ def get_partner_links(partner_id):
         
         # Add partner-specific links with their own stats
         for link in partner_links:
+            # Get earnings from partner_earnings table for this link
+            pe_result = execute_query(
+                "SELECT COALESCE(SUM(amount), 0) as total FROM partner_earnings WHERE link_id = %s",
+                (link['id'],),
+                fetch_one=True
+            )
+            pe_earnings = float(pe_result['total']) if pe_result else 0.0
+            total_earnings = float(link['earnings']) + pe_earnings
+            
             links_list.append({
                 'id': link['id'],
                 'partner_id': link['partner_id'],
@@ -230,7 +239,7 @@ def get_partner_links(partner_id):
                 'is_enabled': bool(link['is_enabled']),
                 'clicks': link['clicks'],
                 'conversions': link['conversions'],
-                'earnings': float(link['earnings']),
+                'earnings': total_earnings,
                 'created_at': link['created_at'].isoformat()
             })
         
@@ -251,6 +260,16 @@ def get_partner_links(partner_id):
                 fetch_one=True
             )
             
+            # Get earnings from partner_earnings for this link and affiliate_id
+            pe_result = execute_query(
+                "SELECT COALESCE(SUM(amount), 0) as total FROM partner_earnings WHERE link_id = %s AND affiliate_id = %s",
+                (link['id'], partner_affiliate_id),
+                fetch_one=True
+            )
+            pe_earnings = float(pe_result['total']) if pe_result else 0.0
+            # General links don't have earnings in affiliate_links table, so only use partner_earnings
+            total_earnings = pe_earnings
+            
             links_list.append({
                 'id': link['id'],
                 'partner_id': partner_id,  # Show as belonging to this partner for display
@@ -263,22 +282,15 @@ def get_partner_links(partner_id):
                 'is_enabled': bool(link['is_enabled']),
                 'clicks': partner_clicks['count'] if partner_clicks else 0,
                 'conversions': partner_conversions['count'] if partner_conversions else 0,
-                'earnings': 0.0,  # Earnings are tracked per partner-specific link only
+                'earnings': total_earnings,
                 'created_at': link['created_at'].isoformat()
             })
         
         # Sort by enabled first, then by created_at
         links_list.sort(key=lambda x: (not x['is_enabled'], x['created_at']), reverse=True)
         
-        # Calculate total earnings including partner_earnings
-        link_earnings_total = sum(float(link.get('earnings', 0)) for link in links_list)
-        pe_earnings = execute_query(
-            "SELECT COALESCE(SUM(amount), 0) as total FROM partner_earnings WHERE partner_id = %s",
-            (partner_id,),
-            fetch_one=True
-        )
-        pe_earnings_total = float(pe_earnings['total']) if pe_earnings else 0.0
-        total_earnings = link_earnings_total + pe_earnings_total
+        # Calculate total earnings (already includes partner_earnings per link)
+        total_earnings = sum(float(link.get('earnings', 0)) for link in links_list)
         
         # Return links array with stats
         return jsonify({
@@ -328,6 +340,15 @@ def get_all_links():
                 clicks = link['clicks']
                 conversions = link['conversions']
             
+            # Get earnings from partner_earnings table for this link
+            pe_result = execute_query(
+                "SELECT COALESCE(SUM(amount), 0) as total FROM partner_earnings WHERE link_id = %s",
+                (link['id'],),
+                fetch_one=True
+            )
+            pe_earnings = float(pe_result['total']) if pe_result else 0.0
+            total_earnings = float(link['earnings']) + pe_earnings
+            
             links_list.append({
                 'id': link['id'],
                 'partner_id': link['partner_id'],
@@ -341,7 +362,7 @@ def get_all_links():
                 'is_enabled': bool(link['is_enabled']),
                 'clicks': clicks,
                 'conversions': conversions,
-                'earnings': float(link['earnings']),
+                'earnings': total_earnings,
                 'created_at': link['created_at'].isoformat()
             })
         
@@ -365,6 +386,15 @@ def get_general_links():
         
         links_list = []
         for link in links:
+            # Get earnings from partner_earnings table for this link
+            pe_result = execute_query(
+                "SELECT COALESCE(SUM(amount), 0) as total FROM partner_earnings WHERE link_id = %s",
+                (link['id'],),
+                fetch_one=True
+            )
+            pe_earnings = float(pe_result['total']) if pe_result else 0.0
+            total_earnings = float(link['earnings']) + pe_earnings
+            
             links_list.append({
                 'id': link['id'],
                 'partner_id': link['partner_id'],
@@ -377,7 +407,7 @@ def get_general_links():
                 'is_enabled': bool(link['is_enabled']),
                 'clicks': link['clicks'],
                 'conversions': link['conversions'],
-                'earnings': float(link['earnings']),
+                'earnings': total_earnings,
                 'created_at': link['created_at'].isoformat()
             })
         
@@ -401,6 +431,15 @@ def get_link(link_id):
         if not link:
             return jsonify({'error': 'Link not found'}), 404
         
+        # Get earnings from partner_earnings table for this link
+        pe_result = execute_query(
+            "SELECT COALESCE(SUM(amount), 0) as total FROM partner_earnings WHERE link_id = %s",
+            (link['id'],),
+            fetch_one=True
+        )
+        pe_earnings = float(pe_result['total']) if pe_result else 0.0
+        total_earnings = float(link['earnings']) + pe_earnings
+        
         return jsonify({
             'id': link['id'],
             'partner_id': link['partner_id'],
@@ -413,7 +452,7 @@ def get_link(link_id):
             'is_enabled': bool(link['is_enabled']),
             'clicks': link['clicks'],
             'conversions': link['conversions'],
-            'earnings': float(link['earnings']),
+            'earnings': total_earnings,
             'created_at': link['created_at'].isoformat()
         }), 200
         

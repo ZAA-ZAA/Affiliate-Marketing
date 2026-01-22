@@ -15,21 +15,22 @@ SELECT key_value, name, is_active FROM api_keys;
 
 ---
 
-## Step 1: Get a Partner ID
+## Step 1: Get an Affiliate ID (Link Code)
 
-You need a `partner_id` from your database. Get it by:
+You need an `affiliate_id` (link_code) from your affiliate links. Get it by:
 
 **Option A: From Database (MySQL)**
 ```sql
-SELECT id, u.email, u.first_name, u.last_name 
-FROM partners p 
-JOIN users u ON p.user_id = u.id 
-WHERE p.status = 'active';
+SELECT link_code, title, partner_id 
+FROM affiliate_links 
+WHERE is_enabled = TRUE;
 ```
 
 **Option B: From API (if backend is running)**
-Open browser: `http://localhost:5000/api/partners`
-Look for the `"id"` field of any partner.
+- For admin: Open `http://localhost:5000/api/links/all` - look for `"link_code"` field
+- For affiliate: Open `http://localhost:8080/affiliate/dashboard` - copy the link code from your affiliate links
+
+**Note:** For general links, use the format: `{link_code}-P-{partner_id}`
 
 ---
 
@@ -40,12 +41,12 @@ Look for the `"id"` field of any partner.
 Open **PowerShell** and run:
 
 ```powershell
-# Replace YOUR_PARTNER_ID with actual partner ID from Step 1
-$partnerId = "YOUR_PARTNER_ID"
+# Replace YOUR_AFFILIATE_ID with actual affiliate link code from Step 1
+$affiliateId = "YOUR_AFFILIATE_ID"
 $apiKey = "aff_live_key_2026_xK9mP2vL8nQ4wR7j"
 
 $body = @{
-    partner_id = $partnerId
+    affiliate_id = $affiliateId
     amount = 150.50
     date = "2025-01-15"
     client_name = "Acme Corporation"
@@ -62,7 +63,14 @@ Invoke-RestMethod -Uri "http://localhost:5000/api/v1/partner/earnings" -Method P
 
 **Example with real values:**
 ```powershell
-$body = '{"partner_id":"abc123-def456-ghi789","amount":250.75,"date":"2025-01-20","client_name":"Test Client","status":"pending"}'
+$body = '{"affiliate_id":"LINK123","amount":250.75,"date":"2025-01-20","client_name":"Test Client","status":"pending"}'
+$headers = @{"X-API-Key"="aff_live_key_2026_xK9mP2vL8nQ4wR7j"; "Content-Type"="application/json"}
+Invoke-RestMethod -Uri "http://localhost:5000/api/v1/partner/earnings" -Method POST -Headers $headers -Body $body
+```
+
+**For general links (with partner):**
+```powershell
+$body = '{"affiliate_id":"GENERAL123-P-abc456","amount":100.00,"date":"2025-01-20","client_name":"Test Client","status":"pending"}'
 $headers = @{"X-API-Key"="aff_live_key_2026_xK9mP2vL8nQ4wR7j"; "Content-Type"="application/json"}
 Invoke-RestMethod -Uri "http://localhost:5000/api/v1/partner/earnings" -Method POST -Headers $headers -Body $body
 ```
@@ -77,7 +85,7 @@ If you have curl installed (or install it from https://curl.se):
 curl -X POST "http://localhost:5000/api/v1/partner/earnings" ^
   -H "Content-Type: application/json" ^
   -H "X-API-Key: aff_live_key_2026_xK9mP2vL8nQ4wR7j" ^
-  -d "{\"partner_id\":\"YOUR_PARTNER_ID\",\"amount\":150.50,\"date\":\"2025-01-15\",\"client_name\":\"Acme Corp\",\"status\":\"pending\"}"
+  -d "{\"affiliate_id\":\"YOUR_AFFILIATE_ID\",\"amount\":150.50,\"date\":\"2025-01-15\",\"client_name\":\"Acme Corp\",\"status\":\"pending\"}"
 ```
 
 ---
@@ -95,7 +103,7 @@ curl -X POST "http://localhost:5000/api/v1/partner/earnings" ^
    - **Body** (select "raw" and "JSON"):
      ```json
      {
-       "partner_id": "YOUR_PARTNER_ID",
+       "affiliate_id": "YOUR_AFFILIATE_ID",
        "amount": 150.50,
        "date": "2025-01-15",
        "client_name": "Acme Corporation",
@@ -119,7 +127,7 @@ headers = {
     "Content-Type": "application/json"
 }
 data = {
-    "partner_id": "YOUR_PARTNER_ID",  # Replace with actual partner ID
+    "affiliate_id": "YOUR_AFFILIATE_ID",  # Replace with actual affiliate link code
     "amount": 150.50,
     "date": "2025-01-15",
     "client_name": "Acme Corporation",
@@ -138,13 +146,16 @@ Run: `python test_earnings.py`
 
 | Parameter | Required | Description | Example |
 |-----------|----------|-------------|---------|
-| `partner_id` | ✅ Yes | Partner UUID from database | `"abc123-def456-ghi789"` |
+| `affiliate_id` | ✅ Yes | Affiliate link code (link_code) | `"LINK123"` or `"GENERAL123-P-abc456"` for general links |
 | `amount` | ✅ Yes | Earnings amount (number) | `150.50` |
 | `date` | ❌ No | Date in YYYY-MM-DD format (defaults to now) | `"2025-01-15"` |
 | `client_name` | ❌ No | Client/customer name | `"Acme Corp"` |
 | `status` | ❌ No | Status (defaults to "pending") | `"pending"` or `"paid"` |
 
-**Note:** You can also use `partner-id` instead of `partner_id`, and `client-name` instead of `client_name`.
+**Note:** 
+- You can also use `affiliate-id` or `affiliateId` instead of `affiliate_id`
+- You can use `client-name` instead of `client_name`
+- For general links, use format: `{link_code}-P-{partner_id}`
 
 ---
 
@@ -156,7 +167,9 @@ Run: `python test_earnings.py`
   "success": true,
   "message": "Earnings added",
   "id": "new-uuid-here",
+  "link_id": "link-uuid-here",
   "partner_id": "abc123-def456-ghi789",
+  "affiliate_id": "LINK123",
   "amount": 150.50,
   "earned_at": "2025-01-15T00:00:00",
   "client_name": "Acme Corporation",
@@ -167,7 +180,7 @@ Run: `python test_earnings.py`
 **Error (400/404):**
 ```json
 {
-  "error": "Partner not found"
+  "error": "Affiliate link not found"
 }
 ```
 
@@ -176,9 +189,10 @@ Run: `python test_earnings.py`
 ## Troubleshooting
 
 1. **"API key is required"** → Make sure you're sending `X-API-Key` header
-2. **"Partner not found"** → Check that the `partner_id` exists and is active
+2. **"Affiliate link not found"** → Check that the `affiliate_id` (link_code) exists and the link is enabled
 3. **"amount must be a number"** → Make sure amount is a number, not a string
 4. **Connection refused** → Make sure backend is running on port 5000
+5. **"Partner not found"** → For general links, make sure the partner_id in the affiliate_id format exists
 
 ---
 
@@ -190,7 +204,7 @@ Save this as `test-earnings.ps1`:
 # Configuration
 $API_KEY = "aff_live_key_2026_xK9mP2vL8nQ4wR7j"
 $BASE_URL = "http://localhost:5000"
-$PARTNER_ID = Read-Host "Enter Partner ID"
+$AFFILIATE_ID = Read-Host "Enter Affiliate ID (link_code, e.g., LINK123 or GENERAL123-P-abc456)"
 
 # Get input
 $amount = Read-Host "Enter amount (e.g., 150.50)"
@@ -207,7 +221,7 @@ if ([string]::IsNullOrWhiteSpace($status)) {
 
 # Build request
 $body = @{
-    partner_id = $PARTNER_ID
+    affiliate_id = $AFFILIATE_ID
     amount = [decimal]$amount
     date = $date
     client_name = $clientName

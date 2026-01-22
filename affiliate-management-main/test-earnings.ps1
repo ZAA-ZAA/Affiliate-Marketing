@@ -8,8 +8,8 @@ $BASE_URL = "http://localhost:5000"
 Write-Host "=== Partner Earnings API Test ===" -ForegroundColor Cyan
 Write-Host ""
 
-# Get Partner ID
-$PARTNER_ID = Read-Host "Enter Partner ID (get from /api/partners or database)"
+# Get Affiliate ID (Link Code)
+$AFFILIATE_ID = Read-Host "Enter Affiliate ID (link_code, e.g., LINK123 or GENERAL123-P-abc456)"
 
 # Get amount
 $amountInput = Read-Host "Enter amount (e.g., 150.50)"
@@ -41,7 +41,7 @@ if ([string]::IsNullOrWhiteSpace($statusInput)) {
 
 # Build request body
 $body = @{
-    partner_id = $PARTNER_ID
+    affiliate_id = $AFFILIATE_ID
     amount = $amount
     date = $date
     client_name = $clientName
