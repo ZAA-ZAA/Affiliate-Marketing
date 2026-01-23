@@ -26,17 +26,60 @@ export default function AffiliateSignup() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [mobileError, setMobileError] = useState("");
   const navigate = useNavigate();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
+    const { name, value } = e.target;
+    
+    // Special handling for mobile number - only allow numbers, +, -, spaces, and parentheses
+    if (name === "mobileNumber") {
+      // Allow only numbers, +, -, spaces, parentheses, and dots
+      const cleanedValue = value.replace(/[^\d+\-() .]/g, "");
+      setFormData((prev) => ({
+        ...prev,
+        [name]: cleanedValue,
+      }));
+      
+      // Validate mobile number format
+      if (cleanedValue && cleanedValue.trim() !== "") {
+        // Remove all non-digit characters for validation
+        const digitsOnly = cleanedValue.replace(/\D/g, "");
+        if (digitsOnly.length < 7) {
+          setMobileError("Mobile number must be at least 7 digits");
+        } else if (digitsOnly.length > 15) {
+          setMobileError("Mobile number cannot exceed 15 digits");
+        } else {
+          setMobileError("");
+        }
+      } else {
+        setMobileError("");
+      }
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate mobile number
+    const digitsOnly = formData.mobileNumber.replace(/\D/g, "");
+    if (!formData.mobileNumber || formData.mobileNumber.trim() === "") {
+      setMobileError("Mobile number is required");
+      return;
+    }
+    if (digitsOnly.length < 7) {
+      setMobileError("Mobile number must be at least 7 digits");
+      return;
+    }
+    if (digitsOnly.length > 15) {
+      setMobileError("Mobile number cannot exceed 15 digits");
+      return;
+    }
 
     if (formData.password !== confirmPassword) {
       setError("Passwords do not match");
@@ -45,6 +88,7 @@ export default function AffiliateSignup() {
 
     setLoading(true);
     setError("");
+    setMobileError("");
 
     try {
       const response = await fetch("/api/auth/affiliate-signup", {
@@ -175,7 +219,12 @@ export default function AffiliateSignup() {
                   value={formData.mobileNumber}
                   onChange={handleChange}
                   required
+                  className={mobileError ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
                 />
+                {mobileError && (
+                  <p className="text-sm text-red-500 mt-1">{mobileError}</p>
+                )}
+                <p className="text-xs text-gray-500">Enter numbers only (e.g., +63 912 345 6789)</p>
               </div>
 
               <div className="space-y-2">

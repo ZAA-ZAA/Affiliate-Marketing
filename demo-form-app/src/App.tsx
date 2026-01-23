@@ -23,6 +23,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
+  const [phoneError, setPhoneError] = useState("");
   const [clickTracked, setClickTracked] = useState(false);
   
   // Ref to prevent double tracking (especially in React StrictMode)
@@ -87,16 +88,58 @@ function App() {
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
+    const { name, value } = e.target;
+    
+    // Special handling for phone - only allow numbers, +, -, spaces, parentheses, and dots
+    if (name === "phone") {
+      // Allow only numbers, +, -, spaces, parentheses, and dots
+      const cleanedValue = value.replace(/[^\d+\-() .]/g, "");
+      setFormData((prev) => ({
+        ...prev,
+        [name]: cleanedValue,
+      }));
+      
+      // Validate phone number format (optional field, but if provided, validate)
+      if (cleanedValue && cleanedValue.trim() !== "") {
+        // Remove all non-digit characters for validation
+        const digitsOnly = cleanedValue.replace(/\D/g, "");
+        if (digitsOnly.length < 7) {
+          setPhoneError("Phone number must be at least 7 digits");
+        } else if (digitsOnly.length > 15) {
+          setPhoneError("Phone number cannot exceed 15 digits");
+        } else {
+          setPhoneError("");
+        }
+      } else {
+        setPhoneError("");
+      }
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate phone number if provided
+    if (formData.phone && formData.phone.trim() !== "") {
+      const digitsOnly = formData.phone.replace(/\D/g, "");
+      if (digitsOnly.length < 7) {
+        setPhoneError("Phone number must be at least 7 digits");
+        return;
+      }
+      if (digitsOnly.length > 15) {
+        setPhoneError("Phone number cannot exceed 15 digits");
+        return;
+      }
+    }
+    
     setLoading(true);
     setError("");
+    setPhoneError("");
 
     try {
       // Submit to the affiliate management API via addlead endpoint
@@ -261,9 +304,17 @@ function App() {
                       placeholder="+1 (555) 123-4567"
                       value={formData.phone}
                       onChange={handleChange}
-                      className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      className={`w-full pl-11 pr-4 py-3 bg-gray-50 border rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition-all ${
+                        phoneError 
+                          ? "border-red-500 focus:ring-red-500 focus:border-red-500" 
+                          : "border-gray-200 focus:ring-blue-500"
+                      }`}
                     />
                   </div>
+                  {phoneError && (
+                    <p className="text-sm text-red-500 mt-1">{phoneError}</p>
+                  )}
+                  <p className="text-xs text-gray-500">Enter numbers only (e.g., +1 555 123 4567)</p>
                 </div>
               </div>
 
